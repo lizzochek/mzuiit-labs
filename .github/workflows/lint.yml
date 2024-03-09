@@ -18,5 +18,5 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v4
 
-      - name: Linter
-        uses: github/super-linter@v4
+      - name: Prettify code
+        uses: creyD/prettier_action@v4.3
