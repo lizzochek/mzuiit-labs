@@ -1,0 +1,43 @@
+name: Docker
+
+on:
+  push:
+    branches: [ "master" ]
+
+env:
+  IMAGE_NAME: lizzochek/app
+
+jobs:
+  push_to_registry:
+    name: Pushing to Docker hub
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:latest,${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Deploy to EC2 instance
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_PRIVATE_KEY }}
+          script: |
+            docker stop app || true
+            docker rm app || true
+            docker pull ${{ secrets.DOCKER_USERNAME }}/app:${{ github.sha }}
+            docker run -d --name lab1 -p 80:80 ${{ secrets.DOCKER_USERNAME }}/app:${{ github.sha }}
+            docker run -d --name lab1-wo -v /var/run/docker.sock:/var/run/docker.sock -e WATCHTOWER_POLL_INTERVAL=120 container/watchtower
