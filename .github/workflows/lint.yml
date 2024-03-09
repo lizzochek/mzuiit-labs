@@ -1,0 +1,22 @@
+name: Linter
+
+on:
+  push:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    name: Linter
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: read
+      statuses: write
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Linter
+        uses: github/super-linter@v4
