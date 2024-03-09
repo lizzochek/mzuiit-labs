@@ -1,0 +1,22 @@
+body {
+    background-color: rgb(14, 14, 14);
+}
+
+h1, h2, p {
+  text-align: center;
+  color: aliceblue;
+}
+
+img {
+  margin: auto;
+  display: block;
+  height: 20rem;
+}
+
+p {
+  font-style: italic;
+}
+
+h2 {
+    color: rgb(172, 56, 180);
+}
