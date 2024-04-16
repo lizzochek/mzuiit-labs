@@ -1,0 +1,24 @@
+name: Linter
+
+on:
+  push:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    name: Linter
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      packages: read
+      statuses: write
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Prettify code
+        uses: creyD/prettier_action@v4.3
+        with:
+          prettier_options: --write **/*.{js,md,html,css}

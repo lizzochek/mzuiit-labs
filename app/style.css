@@ -1,8 +1,10 @@
 body {
-    background-color: rgb(14, 14, 14);
+  background-color: rgb(14, 14, 14);
 }
 
-h1, h2, p {
+h1,
+h2,
+p {
   text-align: center;
   color: aliceblue;
 }
@@ -18,5 +20,5 @@ p {
 }
 
 h2 {
-    color: rgb(172, 56, 180);
+  color: rgb(172, 56, 180);
 }
