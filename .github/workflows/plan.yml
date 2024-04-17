@@ -3,6 +3,9 @@ name: Terraform Plan
 on:
   pull_request:
 
+env:
+  CONFIG_DIRECTORY: "./lab2"
+
 jobs:
   preview:
     name: Plan

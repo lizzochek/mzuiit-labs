@@ -5,6 +5,9 @@ on:
     branches:
       - master
 
+env:
+  CONFIG_DIRECTORY: "./lab2"
+  
 jobs:
   preview:
     name: Apply
