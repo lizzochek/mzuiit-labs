@@ -8,8 +8,8 @@ on:
 env:
   TF_CLOUD_ORGANIZATION: "liza-organization"
   TF_API_TOKEN: "${{ secrets.TF_API_TOKEN }}"
-  TF_WORKSPACE: "mzuiiit-labs"
-  CONFIG_DIRECTORY: "./lab2"
+  TF_WORKSPACE: "mzuiit-labs"
+  CONFIG_DIRECTORY: "./"
 
 jobs:
   terraform:
