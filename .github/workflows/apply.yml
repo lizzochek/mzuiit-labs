@@ -7,7 +7,7 @@ on:
 
 env:
   CONFIG_DIRECTORY: "./lab2"
-  
+
 jobs:
   preview:
     name: Apply
@@ -35,8 +35,8 @@ jobs:
 
       - name: Install Terraform with asdf
         run: |
-          asdf plugin add terraform
-          asdf install terraform
+          asdf plugin add terraform@latest
+          asdf install terraform@latest
 
       - name: List changed stacks
         id: list
