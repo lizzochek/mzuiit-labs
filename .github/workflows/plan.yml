@@ -4,88 +4,77 @@ on:
   pull_request:
 
 env:
+  TF_CLOUD_ORGANIZATION: "liza-organization"
+  TF_API_TOKEN: "${{ secrets.TF_API_TOKEN }}"
+  TF_WORKSPACE: "mzuiit-labs"
   CONFIG_DIRECTORY: "./lab2"
 
 jobs:
-  preview:
-    name: Plan
+  terraform:
+    if: github.repository != 'hashicorp-education/learn-terraform-github-actions'
+    name: "Terraform Plan"
     runs-on: ubuntu-latest
-
     permissions:
-      id-token: write
-      contents: write
+      contents: read
       pull-requests: write
-
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
+      - name: Upload Configuration
+        uses: hashicorp/tfc-workflows-github/actions/upload-configuration@v1.0.0
+        id: plan-upload
         with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
+          workspace: ${{ env.TF_WORKSPACE }}
+          directory: ${{ env.CONFIG_DIRECTORY }}
+          speculative: true
 
-      ### Install tooling
-
-      - name: Install Terramate
-        uses: terramate-io/terramate-action@v1
-
-      - name: Install asdf
-        uses: asdf-vm/actions/setup@v3
-
-      - name: Install Terraform with asdf
-        run: |
-          asdf plugin add terraform
-          asdf install terraform
-
-      - name: List changed stacks
-        id: list
-        run: |
-          echo "stdout<<STDOUT" >>$GITHUB_OUTPUT
-          terramate list --changed >>$GITHUB_OUTPUT
-          EXIT_CODE=$?
-          echo "STDOUT" >>$GITHUB_OUTPUT
-          exit ${EXIT_CODE}
-
-      - name: Configure AWS Credentials
-        if: steps.list.outputs.stdout
-        uses: aws-actions/configure-aws-credentials@v2
+      - name: Create Plan Run
+        uses: hashicorp/tfc-workflows-github/actions/create-run@v1.0.0
+        id: plan-run
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-north-1
+          workspace: ${{ env.TF_WORKSPACE }}
+          configuration_version: ${{ steps.plan-upload.outputs.configuration_version_id }}
+          plan_only: true
 
-      - name: Create Terraform plan on changed stacks
-        if: steps.list.outputs.stdout
-        run: |
-          terramate run --changed -- terraform init
-          terramate run --changed -- terraform validate
-          terramate run --changed -- terraform plan -out out.tfplan
+      - name: Get Plan Output
+        uses: hashicorp/tfc-workflows-github/actions/plan-output@v1.0.0
+        id: plan-output
+        with:
+          plan: ${{ fromJSON(steps.plan-run.outputs.payload).data.relationships.plan.data.id }}
 
-      - name: Generate Preview Comment
-        if: steps.list.outputs.stdout
-        id: comment
-        run: |
-          echo >>pr-comment.txt "### List of Changed"
-          echo >>pr-comment.txt
-          echo >>pr-comment.txt '```bash'
-          echo >>pr-comment.txt "${{ steps.list.outputs.stdout }}"
-          echo >>pr-comment.txt '```'
-          echo >>pr-comment.txt
-          echo >>pr-comment.txt "#### Terraform Plan"
-          echo >>pr-comment.txt
-          echo >>pr-comment.txt '```terraform'
-          terramate run --changed -- terraform show -no-color out.tfplan 2>&1 | dd bs=1024 count=248 >>pr-comment.txt
-          echo >>pr-comment.txt '```'
-          cat pr-comment.txt >>$GITHUB_STEP_SUMMARY
-
-      - name: Inform about no Changed Stacks
-        if: (!steps.list.outputs.stdout)
-        run: |
-          echo >>pr-comment.txt '### No changed stacks.'
-          cat pr-comment.txt >>$GITHUB_STEP_SUMMARY
-
-      - name: Publish Plans for Changed Stacks
+      - name: Update PR
         uses: actions/github-script@v6
+        id: plan-comment
         with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          header: terraform-plan
-          path: pr-comment.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // 1. Retrieve existing bot comments for the PR
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const botComment = comments.find(comment => {
+              return comment.user.type === 'Bot' && comment.body.includes('Terraform Cloud Plan Output')
+            });
+            const output = `#### Terraform Cloud Plan Output
+               \`\`\`
+               Plan: ${{ steps.plan-output.outputs.add }} to add, ${{ steps.plan-output.outputs.change }} to change, ${{ steps.plan-output.outputs.destroy }} to destroy.
+               \`\`\`
+               [Terraform Cloud Plan](${{ steps.plan-run.outputs.run_link }})
+               `;
+            // 3. Delete previous comment so PR timeline makes sense
+            if (botComment) {
+              github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+              });
+            }
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });

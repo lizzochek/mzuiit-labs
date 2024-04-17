@@ -1,68 +1,44 @@
-name: Terraform Apply
+name: "Terraform Apply"
 
 on:
   push:
     branches:
-      - master
+      - main
 
 env:
+  TF_CLOUD_ORGANIZATION: "liza-organization"
+  TF_API_TOKEN: "${{ secrets.TF_API_TOKEN }}"
+  TF_WORKSPACE: "mzuiiit-labs"
   CONFIG_DIRECTORY: "./lab2"
 
 jobs:
-  preview:
-    name: Apply
+  terraform:
+    name: "Terraform Apply"
     runs-on: ubuntu-latest
-
     permissions:
-      id-token: write
-      contents: write
-      pull-requests: write
-
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Upload Configuration
+        uses: hashicorp/tfc-workflows-github/actions/upload-configuration@v1.0.0
+        id: apply-upload
         with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
+          workspace: ${{ env.TF_WORKSPACE }}
+          directory: ${{ env.CONFIG_DIRECTORY }}
 
-      ### Install tooling
-
-      - name: Install Terramate
-        uses: terramate-io/terramate-action@v1
-          
-      - name: Install asdf
-        uses: asdf-vm/actions/setup@v3
-
-      - name: Install Terraform with asdf
-        run: |
-          asdf plugin add terraform@latest
-          asdf install terraform@latest
-
-      - name: List changed stacks
-        id: list
-        run: |
-          echo "stdout<<STDOUT" >>$GITHUB_OUTPUT
-          terramate list --changed >>$GITHUB_OUTPUT
-          EXIT_CODE=$?
-          echo "STDOUT" >>$GITHUB_OUTPUT
-          exit ${EXIT_CODE}
-
-      - name: Configure AWS Credentials
-        if: steps.list.outputs.stdout
-        uses: aws-actions/configure-aws-credentials@v2
+      - name: Create Apply Run
+        uses: hashicorp/tfc-workflows-github/actions/create-run@v1.0.0
+        id: apply-run
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-central-1
+          workspace: ${{ env.TF_WORKSPACE }}
+          configuration_version: ${{ steps.apply-upload.outputs.configuration_version_id }}
 
-      - name: Run Terraform init on changed stacks
-        if: steps.list.outputs.stdout
-        id: init
-        run: |
-          terramate run --changed -- terraform init
-
-      - name: Create Terraform apply on changed stacks
-        if: steps.list.outputs.stdout
+      - name: Apply
+        uses: hashicorp/tfc-workflows-github/actions/apply-run@v1.0.0
+        if: fromJSON(steps.apply-run.outputs.payload).data.attributes.actions.IsConfirmable
         id: apply
-        run: |
-          terramate run --changed -- terraform apply -input=false -auto-approve
+        with:
+          run: ${{ steps.apply-run.outputs.run_id }}
+          comment: "Apply Run from GitHub Actions CI ${{ github.sha }}"
