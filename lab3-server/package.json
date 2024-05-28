@@ -1,0 +1,13 @@
+{
+    "name": "lab3-server",
+    "version": "1.0.0",
+    "description": "Lab3 MZUIIT by Dolhova and Tupchiy",
+    "scripts": {
+        "start": "node"
+    },
+    "dependencies": {
+        "express": "4.17.1",
+        "winston": "^3.13.0"
+    },
+    "license": "MIT"
+}
