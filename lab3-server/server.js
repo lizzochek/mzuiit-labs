@@ -41,13 +41,18 @@ app.get("/random", (req, res, next) => {
   const result = Math.floor(Math.random() * 100) > 30;
   const transactionTime = Math.round(Math.random() * 100);
   totalCalls.inc({ result });
-  delays.labels(req.method, req.route.path, res.statusCode).observe(transactionTime);
+  delays
+    .labels(req.method, req.route.path, res.statusCode)
+    .observe(transactionTime);
   if (!result) {
     next(new Error("Sorry! Your number is less than 30."));
     logger.error("Error happened", { errCode: "1", transactionTime });
   } else {
     setTimeout(() => {
-      res.json({ status: "All good!", transactionTime: transactionTime + "ms" });
+      res.json({
+        status: "All good!",
+        transactionTime: transactionTime + "ms",
+      });
       next();
     }, transactionTime);
     logger.info("Transaction successfull", { transactionTime });
